@@ -1,0 +1,136 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.7/signalr.min.js"></script>
+
+    <meta charset="UTF-8">
+    <title>Kullanıcı Yönetimi</title>
+    <style>
+        body {
+            font-family: Arial;
+            margin: 20px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        input {
+            margin: 5px;
+            padding: 6px;
+        }
+
+        button {
+            padding: 6px 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Kullanıcı Listesi</h2>
+    <table id="userTable">
+        <thead>
+            <tr><th>ID</th><th>İsim</th><th>Email</th><th>Rol</th></tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <h3>Yeni Kullanıcı Ekle</h3>
+    <input type="text" id="name" placeholder="İsim" required>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="text" id="role" placeholder="Rol (Admin/User)" required>
+    <button onclick="addUser()">Ekle</button>
+
+    <script>
+        const apiUrl = "https://localhost:7103/api/users"; //fetch users
+        let connection = new signalR.HubConnectionBuilder()
+            .withUrl("/notificationHub") //declare notification hub
+            .build();
+
+        // start connection
+        connection.start().then(() => {
+            console.log("SignalR Bağlantısı Başarılı!");
+        }).catch(err => console.error("SignalR Bağlantısı Başarısız:", err));
+
+        // listen notification 
+        connection.on("ReceiveNotification", function (message) {
+            alert(message); // show notifications for all clients
+            fetchUsers();
+        });
+
+
+       
+
+        function fetchUsers() {
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("Ağ hatası: " + response.status);
+                    }
+                    return response.json();
+                })
+                .then(users => {
+                    const tbody = document.getElementById("userTable");
+                    tbody.innerHTML = ""; // clear table
+
+                    users.forEach(user => {
+                        const row = document.createElement("tr");
+                        row.innerHTML = `
+                    <td>${user.id}</td>
+                    <td>${user.name}</td>
+                    <td>${user.email}</td>
+                    <td>${user.role}</td>
+                `;
+                        tbody.appendChild(row);
+                    });
+                })
+                .catch(error => {
+                    console.error("Kullanıcılar alınırken hata oluştu:", error);
+                });
+        }
+
+
+        async function addUser() {
+            const name = document.getElementById("name").value;
+            const email = document.getElementById("email").value;
+            const role = document.getElementById("role").value;
+
+            fetch(apiUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ name, email, role }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    alert("Kullanıcı başarıyla eklendi!");
+                    getUsers();
+                    fetchUsers();
+                    // clear form
+                    document.getElementById("name").value = "";
+                    document.getElementById("email").value = "";
+                    document.getElementById("role").value = "";
+                })
+                .catch(error => {
+                    console.error("Hata oluştu:", error);
+                });
+        }
+
+        fetchUsers();
+        
+    </script>
+
+</body>
+</html>
